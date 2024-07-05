@@ -70,6 +70,13 @@ import cpw.mods.fml.relauncher.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import net.minecraft.world.WorldProvider;
+import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.DimensionManager.*;
+import java.util.Hashtable;
+import java.lang.reflect.Constructor;
+import net.minecraft.block.Block;
+import net.minecraft.init.Blocks;
+import net.minecraft.world.gen.NoiseGeneratorPerlin;
 
 
 import cpw.mods.fml.relauncher.Side;
@@ -145,23 +152,26 @@ import net.minecraft.entity.EnumCreatureType;
 
 public class ChunkProviderSpliced implements IChunkProvider{
 
-    private final World world;
-	private final long seed;
-    private final Random random;
-	private final boolean mapFeaturesEnabled;
-    private final ChunkProviderGenerate amplifiedProvider;
-    private final ChunkProviderGenerate largeBiomesProvider;
-    private final ChunkProviderGenerate normal;
-    private final ChunkProviderGenerate DEFAULT_1_1;
-    private final ChunkProviderHell hell;
-    private final ChunkProviderEnd end;
-	private final ChunkProviderFlat flat;
-	private final WorldChunkManager worldChunkMgr;
-	private final WorldType worldTypeTmp;
-	private final String generatorStrTmp;
+    public final World world;
+	public final long seed;
+    //public static final Random random;
+    public static Random random;
+	public final boolean mapFeaturesEnabled;
+    public final ChunkProviderGenerate amplifiedProvider;
+    public final ChunkProviderGenerate largeBiomesProvider;
+    public final ChunkProviderGenerate normal;
+    public final ChunkProviderGenerate DEFAULT_1_1;
+    public final ChunkProviderHell hell;
+    public final ChunkProviderEnd end;
+	public final ChunkProviderFlat flat;
+	public final WorldChunkManager worldChunkMgr;
+	public final WorldType worldTypeTmp;
+	public final String generatorStrTmp;
 	public static Field generatorOptionsField;
+	public static Field dimProvidersField;
 	//public static final MethodHandle generatorOptionsMeth;
-	private Map<String, WorldServer> worldDict;
+	public Map<String, Integer> worldDict;
+	public static NoiseGeneratorPerlin perlinNoise;
 
 	//private final Worldtype1 = WorldType.parseWorldType("DEFAULT");
 	//private final Worldtype2 = WorldType.parseWorldType("AMPLIFIED");
@@ -171,6 +181,7 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		this.seed = seed;
         this.random = new Random(seed);
 		this.mapFeaturesEnabled = mapFeaturesEnabled;
+		this.perlinNoise = new NoiseGeneratorPerlin(this.random, 4); // Example: 4 octaves
 
 		worldDict = new HashMap<>();
 
@@ -209,17 +220,41 @@ public class ChunkProviderSpliced implements IChunkProvider{
 			//generatorOptionsField = world.getWorldInfo().getClass().getDeclaredField("generatorOptions");
 			//generatorOptionsField = ObfuscationReflectionHelper.findField(world.getWorldInfo().getClass(), "field_76100_a");
 			//Class<? extends WorldInfo> worldInfoClass = world.getWorldInfo().getClass(); // this works
-			generatorOptionsField = ReflectionHelper.findField(world.getWorldInfo().getClass(), "generatorOptions");
+			generatorOptionsField = ReflectionHelper.findField(world.getWorldInfo().getClass(), "field_82576_c", "generatorOptions");
 			//generatorOptionsField = ObfuscationReflectionHelper.findField
 			generatorOptionsField.setAccessible(true);
 			//generatorOptionsMeth = MethodHandles.lookup().unreflectSetter(generatorOptionsField.setAccessible);
+
+			//net.minecraftforge.common.DimensionManager
+			dimProvidersField = ReflectionHelper.findField(DimensionManager.class, "providers");
+			@SuppressWarnings("unchecked")
+            Hashtable<Integer, Class<? extends WorldProvider>> providers = (Hashtable<Integer, Class<? extends WorldProvider>>) dimProvidersField.get(null);
+			for (Integer key : providers.keySet()) {
+                Class<? extends WorldProvider> providerClass = providers.get(key);
+				String dimName = "";
+				//if (DimensionManager.createProviderFor(key) != null) { // throws an exception, sigh
+				if (false) {
+					dimName = DimensionManager.createProviderFor(key).getDimensionName();
+                	System.out.println("Dimension: " + key + ", Value: " + providerClass.getName() + ", Name: " + DimensionManager.createProviderFor(key).getDimensionName());
+					worldDict.put(dimName, key);
+				}
+				else {
+                	System.out.println("Dimension: " + key + ", Name: " + providerClass.getName());
+					worldDict.put(providerClass.getName(), key);
+				}
+            }
 		} catch (Exception e) { e.printStackTrace(); }
+
+		for(int i=0; i< DimensionManager.getStaticDimensionIDs().length; i++){
+			System.out.println(DimensionManager.getStaticDimensionIDs()[i]);
+		}
     }
 
     @Override
     public Chunk provideChunk(int x, int z) {
 		//String worldTypeStr = decideWorldGenerator(x, z);
 		//WorldType worldType = WorldType.parseWorldType(worldTypeStr);
+		System.out.println(getTargetChunkProvider(x, z));
 
 		return getTargetChunkProvider(x, z).provideChunk(x, z);
 
@@ -296,10 +331,41 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		*/
     }
 
-	public String decideWorldGenerator(int x, int z) {
-		if(x>0)
-            return "OWG+INFDEV#0";
+	public int decideWorldGenerator(int x, int z) {
+		//if (perlinNoise.func_151601_a(x, 0, z, 0.5, 0.5) > 0.5)
+
+		if (x < 128 && z < 128 && x > -128 && z > -128)
+			return 0; //TODO
+
+		float tmpFloat = (float) perlinNoise.func_151601_a(x/GeneratorSplicer.regionSize, z/GeneratorSplicer.regionSize);
+		for (int i=0;
+		i < GeneratorSplicer.generatorWeightsArray.length;
+		i++) {
+			if (GeneratorSplicer.generatorWeightsArray[i] > tmpFloat)
+				return i;
+		}
+		return GeneratorSplicer.generatorWeightsArray.length - 1; 
+
+		/*
+		if (x < 512 && z < 512 && x > -512 && z > -512)
+            return "OWG";
+		if (perlinNoise.func_151601_a(x/256, z/256) > 0.5)
+            return "net.tropicraft.world.WorldProviderTropicraft";
+		else
+            return "twilightforest.world.WorldProviderTwilightForest";
+		*/
+
+		/*
+		if(x<-1000)
+            return "net.tropicraft.world.WorldProviderTropicraft";
+            //return "OWG+INFDEV#0";
+		else if(x>10000)
+            //return "twilightforest.world.WorldProviderTwilightForest";
+            return "thebetweenlands.world.WorldProviderBetweenlands";
+            //return "OWG+INFDEV#1";
             //return normal.provideChunk(x, z);
+		else if(x>1000)
+            return "twilightforest.world.WorldProviderTwilightForest";
         else
             //return hell.provideChunk(x, z);
             //return "BIOMESOP";
@@ -307,7 +373,9 @@ public class ChunkProviderSpliced implements IChunkProvider{
             //return "ATG";
             //return "OWG";
             //return "OWG+INFDEV#0";
-            return "OWG+INFDEV#1";
+            return "OWG+INFDEV#0";
+			//return "ATG";
+		*/
 	}
 
 	public IChunkProvider getTargetChunkProvider(int x, int z) {
@@ -318,23 +386,29 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		world.getWorldInfo().setTerrainType(worldTypeTmp);
 		//generateStrTmp = world.getWorldInfo().getGeneratorOptions(); all generators have an explicit options field so i dont think this is needed
 
+		int i = this.decideWorldGenerator(x, z);
+
+		/*
 		String str = decideWorldGenerator(x, z);
 		String str2 = "";
 		if (str.contains("+")) {
 			str2 = str.substring(str.indexOf('+') + 1);
 			str = str.substring(0, str.indexOf('+'));
 		}
+		*/
 
-		if (world.getWorldInfo().getGeneratorOptions() != str2) {
-			System.out.println(world.getWorldInfo().getGeneratorOptions());
-			setGeneratorOptions(world, str2);
-			System.out.println(world.getWorldInfo().getGeneratorOptions());
+		//if (world.getWorldInfo().getGeneratorOptions() != str2) {
+		if (world.getWorldInfo().getGeneratorOptions() != GeneratorSplicer.generatorOptionsArray[i]) {
+			//System.out.println(world.getWorldInfo().getGeneratorOptions());
+			//setGeneratorOptions(world, str2);
+			//System.out.println(world.getWorldInfo().getGeneratorOptions());
+			setGeneratorOptions(world, GeneratorSplicer.generatorOptionsArray[i]);
 		}
 		
 		// this is it
 		//return WorldType.parseWorldType(decideWorldGenerator(x, z)).getChunkGenerator(this.world, "");
 
-		switch (str) {
+		switch (GeneratorSplicer.generatorsArray[i]) {
 			case "DEFAULT":
 				world.provider.worldChunkMgr = this.worldChunkMgr;
 				return normal;
@@ -375,19 +449,76 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		//System.out.println("VERY VERY misbehaving worldprovider66: " + WorldType.parseWorldType(worldTypeStr).getChunkManager(world));
 		//world.provider.worldChunkMgr = WorldType.parseWorldType(worldTypeStr).getChunkManager(world);
 
-		if (WorldType.parseWorldType(str) != null) {
-			world.provider.worldChunkMgr = WorldType.parseWorldType(str).getChunkManager(world);
+		if (WorldType.parseWorldType(GeneratorSplicer.generatorsArray[i]) != null) { // TODO probably should set ChunkManager (the biome manager) to the target one
+			world.provider.worldChunkMgr = WorldType.parseWorldType(GeneratorSplicer.generatorsArray[i]).getChunkManager(world);
 			//worldInfo.setTerrainType(WorldType.AMPLIFIED);
-        	return WorldType.parseWorldType(str).getChunkGenerator(this.world, str2);
+        	return WorldType.parseWorldType(GeneratorSplicer.generatorsArray[i]).getChunkGenerator(this.world, GeneratorSplicer.generatorOptionsArray[i]);
 		}
+
+							//return DimensionManager.getProvider(worldDict.get(str)).terrainType.getChunkGenerator(world, str2);
+							//return FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider();
+		if (worldDict.containsKey(GeneratorSplicer.generatorsArray[i])) {
+			try {
+				Constructor<? extends IChunkProvider>[] constructors = (Constructor<? extends IChunkProvider>[]) (((Class<? extends IChunkProvider>)((((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getChunkProvider())).currentChunkProvider)).getClass())).getDeclaredConstructors();
+				for (Constructor<? extends IChunkProvider> constructor : constructors) {
+					Class<?>[] parameterTypes = constructor.getParameterTypes();
+					//System.out.println(((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())));
+					//System.out.println(((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())).currentChunkProvider);
+					//System.out.println(((FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())));
+					//System.out.println(((IChunkProvider)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())));
+					//System.out.println(((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())));
+					//System.out.println(constructor);
+					world.provider.worldChunkMgr = FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getWorldChunkManager();
+					//System.out.println(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getWorldChunkManager());
+					//for(int i=0;i<parameterTypes.length;i++){ System.out.println(parameterTypes[i]); }
+					if (parameterTypes.length == 2 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class))
+						return constructor.newInstance(world, seed);
+					if (parameterTypes.length == 3 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class))
+						return constructor.newInstance(world, seed, mapFeaturesEnabled);
+					if (parameterTypes.length == 4 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class) && parameterTypes[3].equals(String.class))
+						return constructor.newInstance(world, seed, mapFeaturesEnabled, GeneratorSplicer.generatorOptionsArray[i]);// TODO should probably start with longest constructor
+					if (parameterTypes.length == 5 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(Block.class) && parameterTypes[3].equals(Block.class) && parameterTypes[4].equals(int.class)) //betweenlands garbage
+						return constructor.newInstance(world, seed, Blocks.stonebrick, Blocks.water, 80);// i could probably make this level with the other ones
+				}    /*(((Class<? extends IChunkProvider>)((((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())).currentChunkProvider))))*/
+
+				/*
+				if (((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class, boolean.class) != null)
+					return ((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class, boolean.class).newInstance(world, seed, mapFeaturesEnabled);
+				if (((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class) != null)
+					return ((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class).newInstance(world, seed);
+				if (((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class, boolean.class, String.class) != null)
+					return ((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class, boolean.class, String.class).newInstance(world, seed, mapFeaturesEnabled, str2);
+				*/
+			} catch (Exception e) { e.printStackTrace(); }
+
+			System.out.println("epic faillll");
+			if (worldDict.containsKey(GeneratorSplicer.generatorsArray[i])) //TODO re-enable
+				return FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getChunkProvider(); //TODO ^
+		}
+
+		/*if (worldDict.containsKey(str)) {
+			//world.provider.worldChunkMgr = DimensionManager.createProviderFor(worldDict.get(str)).getChunkManager(world);
+			//return DimensionManager.createProviderFor(worldDict.get(str)).getChunkGenerator(world, str2);
+			//return DimensionManager.createProviderFor(worldDict.get(str)).createChunkGenerator();
+			System.out.println("0");
+			if (worldDict.get(str) != null)
+			System.out.println("1");
+				if (DimensionManager.createProviderFor(worldDict.get(str)) != null)
+			System.out.println("2");
+					if (DimensionManager.createProviderFor(worldDict.get(str)).terrainType != null)
+			System.out.println("3");
+						if (DimensionManager.createProviderFor(worldDict.get(str)).terrainType.getChunkGenerator(world, str2) != null)
+			System.out.println("4");
+							return DimensionManager.createProviderFor(worldDict.get(str)).terrainType.getChunkGenerator(world, str2);
+		}*/
 
 		return null;
 	}
 
 	public static void setGeneratorOptions(World world, String str2) {
 		try {
-			System.out.println(world);
-			System.out.println(str2);
+			//System.out.println(world);
+			//System.out.println(str2);
 			//generatorOptionsField.set(world.getWorldInfo(), str2);
 			//generatorOptionsMeth.invoke(generatorOptions, str2);}
 			ObfuscationReflectionHelper.setPrivateValue(WorldInfo.class, world.getWorldInfo(), str2, "field_82576_c", "generatorOptions");
