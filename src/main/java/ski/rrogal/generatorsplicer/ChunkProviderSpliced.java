@@ -181,7 +181,7 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		this.seed = seed;
         this.random = new Random(seed);
 		this.mapFeaturesEnabled = mapFeaturesEnabled;
-		this.perlinNoise = new NoiseGeneratorPerlin(this.random, 4); // Example: 4 octaves
+		this.perlinNoise = new NoiseGeneratorPerlin(this.random, 1); // Example: 4 octaves
 
 		worldDict = new HashMap<>();
 
@@ -232,8 +232,8 @@ public class ChunkProviderSpliced implements IChunkProvider{
 			for (Integer key : providers.keySet()) {
                 Class<? extends WorldProvider> providerClass = providers.get(key);
 				String dimName = "";
-				//if (DimensionManager.createProviderFor(key) != null) { // throws an exception, sigh
-				if (false) {
+				//if (DimensionManager.createProviderFor(key) != null) { // throws an exception with twilight forest if they dont use the same provider dim ID. always throws one for mystcraft
+				if (false) { // you can't even check if its null because the act of checking even throws an exception
 					dimName = DimensionManager.createProviderFor(key).getDimensionName();
                 	System.out.println("Dimension: " + key + ", Value: " + providerClass.getName() + ", Name: " + DimensionManager.createProviderFor(key).getDimensionName());
 					worldDict.put(dimName, key);
@@ -337,10 +337,13 @@ public class ChunkProviderSpliced implements IChunkProvider{
 		if (x < 128 && z < 128 && x > -128 && z > -128)
 			return 0; //TODO
 
-		float tmpFloat = (float) perlinNoise.func_151601_a(x/GeneratorSplicer.regionSize, z/GeneratorSplicer.regionSize);
+		float tmpFloat = (float) Math.abs(perlinNoise.func_151601_a(x/GeneratorSplicer.regionSize, z/GeneratorSplicer.regionSize));
+		if(tmpFloat > 1)System.out.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEERROR, PERLIN IS BROKEN AGAIN, ERROR " + tmpFloat);
 		for (int i=0;
 		i < GeneratorSplicer.generatorWeightsArray.length;
 		i++) {
+			//System.out.println(x + ", " + z);
+			//System.out.println(GeneratorSplicer.generatorsArray[i] + " " + GeneratorSplicer.generatorWeightsArray[i] + " > " + tmpFloat);
 			if (GeneratorSplicer.generatorWeightsArray[i] > tmpFloat)
 				return i;
 		}
@@ -582,7 +585,8 @@ public class ChunkProviderSpliced implements IChunkProvider{
 	public List getPossibleCreatures(EnumCreatureType p_73155_1_, int p_73155_2_, int p_73155_3_, int p_73155_4_) {
 		//todo 
 		//return normal.getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
-		return getTargetChunkProvider(p_73155_2_, p_73155_4_).getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
+		return getTargetChunkProvider(p_73155_2_, p_73155_4_)
+		.getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
         //BiomeGenBase biomegenbase = this.worldObj.getBiomeGenForCoords(p_73155_2_, p_73155_4_);
         //return p_73155_1_ == EnumCreatureType.monster && this.scatteredFeatureGenerator.func_143030_a(p_73155_2_, p_73155_3_, p_73155_4_) ? this.scatteredFeatureGenerator.getScatteredFeatureSpawnList() : biomegenbase.getSpawnableList(p_73155_1_);
     }
