@@ -585,8 +585,17 @@ public class ChunkProviderSpliced implements IChunkProvider{
 	public List getPossibleCreatures(EnumCreatureType p_73155_1_, int p_73155_2_, int p_73155_3_, int p_73155_4_) {
 		//todo 
 		//return normal.getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
-		return getTargetChunkProvider(p_73155_2_, p_73155_4_)
-		.getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
+		/*
+		if (getTargetChunkProvider(p_73155_2_, p_73155_4_) == null) // eventually remove this
+			System.out.println("Maaaaaaaajor fuckup, at " + p_73155_2_ + ", " + p_73155_4_);
+		if (getTargetChunkProvider(p_73155_2_, p_73155_4_).getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_) != null)
+			return getTargetChunkProvider(p_73155_2_, p_73155_4_).getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
+
+		System.out.println(getTargetChunkProvider(p_73155_2_, p_73155_4_) + " returns null for getPossibleCreatures!! using the possible creatures of the chunkProvider of world spawn");
+		*/
+		//return getTargetChunkProvider(0, 0).getPossibleCreatures(p_73155_1_, p_73155_2_, p_73155_3_, p_73155_4_);
+		BiomeGenBase biomegenbase = this.world.getBiomeGenForCoords(p_73155_2_, p_73155_4_);
+    	return biomegenbase.getSpawnableList(p_73155_1_);
         //BiomeGenBase biomegenbase = this.worldObj.getBiomeGenForCoords(p_73155_2_, p_73155_4_);
         //return p_73155_1_ == EnumCreatureType.monster && this.scatteredFeatureGenerator.func_143030_a(p_73155_2_, p_73155_3_, p_73155_4_) ? this.scatteredFeatureGenerator.getScatteredFeatureSpawnList() : biomegenbase.getSpawnableList(p_73155_1_);
     }
