@@ -159,11 +159,16 @@ public class ChunkProviderSpliced implements IChunkProvider{
 	public final boolean mapFeaturesEnabled;
     public final ChunkProviderGenerate amplifiedProvider;
     public final ChunkProviderGenerate largeBiomesProvider;
+	public final WorldChunkManager worldChunkMgrLargeBiomes;
     public final ChunkProviderGenerate normal;
     public final ChunkProviderGenerate DEFAULT_1_1;
+	public final WorldChunkManager worldChunkMgr11;
     public final ChunkProviderHell hell;
+	public final WorldChunkManager worldChunkMgrHell;
     public final ChunkProviderEnd end;
+	public final WorldChunkManager worldChunkMgrEnd;
 	public final ChunkProviderFlat flat;
+	public final WorldChunkManager worldChunkMgrFlat;
 	public final WorldChunkManager worldChunkMgr;
 	public final WorldType worldTypeTmp;
 	public final String generatorStrTmp;
@@ -172,6 +177,8 @@ public class ChunkProviderSpliced implements IChunkProvider{
 	//public static final MethodHandle generatorOptionsMeth;
 	public Map<String, Integer> worldDict;
 	public static NoiseGeneratorPerlin perlinNoise;
+	//public static Class<? extends IChunkProvider>[] preGennedReflectedProviders;
+	public static IChunkProvider[] preGennedReflectedProviders;
 
 	//private final Worldtype1 = WorldType.parseWorldType("DEFAULT");
 	//private final Worldtype2 = WorldType.parseWorldType("AMPLIFIED");
@@ -193,6 +200,7 @@ public class ChunkProviderSpliced implements IChunkProvider{
 
 		this.worldChunkMgr = world.getWorldChunkManager(); // TODO actually set this
 		//System.out.println("ChUNK MANAGER: " + worldChunkManagerTmp);
+		preGennedReflectedProviders = new IChunkProvider[GeneratorSplicer.generatorWeightsArray.length];
 
         // Initialize other chunk providers (Amplified and Large Biomes)
         this.normal = new ChunkProviderGenerate(world, seed, world.getWorldInfo().isMapFeaturesEnabled());
@@ -202,17 +210,22 @@ public class ChunkProviderSpliced implements IChunkProvider{
 
 		worldInfo.setTerrainType(WorldType.LARGE_BIOMES);
         this.largeBiomesProvider = new ChunkProviderGenerate(world, seed, world.getWorldInfo().isMapFeaturesEnabled());
+	this.worldChunkMgrLargeBiomes = new WorldChunkManager(this.seed, WorldType.LARGE_BIOMES);
 
 		worldInfo.setTerrainType(WorldType.DEFAULT_1_1);
         this.DEFAULT_1_1 = new ChunkProviderGenerate(world, seed, world.getWorldInfo().isMapFeaturesEnabled());
+	this.worldChunkMgr11 = new WorldChunkManager(this.seed, WorldType.DEFAULT_1_1);
 		
 		// TODO flat worldtype
         this.flat = new ChunkProviderFlat(world, seed, world.getWorldInfo().isMapFeaturesEnabled(), "");
+	this.worldChunkMgrFlat = new WorldChunkManager(this.seed, WorldType.FLAT);
 		//world.provider.worldChunkMgr = FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(-1).getWorldChunkManager();
 		//world.provider.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.hell, 0.0F);
         this.hell = new ChunkProviderHell(world, seed);
+	this.worldChunkMgrHell = new WorldChunkManagerHell(BiomeGenBase.hell, 0.0F);
 		//world.provider.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.sky, 0.0F);
         this.end = new ChunkProviderEnd(world, seed);
+	this.worldChunkMgrEnd = new WorldChunkManagerHell(BiomeGenBase.sky, 0.0F);
 
 		worldInfo.setTerrainType(worldTypeTmp);
 
@@ -419,22 +432,22 @@ public class ChunkProviderSpliced implements IChunkProvider{
 				world.provider.worldChunkMgr = this.worldChunkMgr;
 				return amplifiedProvider; 
 			case "LARGE_BIOMES":
-				world.provider.worldChunkMgr = new WorldChunkManager(this.seed, WorldType.LARGE_BIOMES);
+				world.provider.worldChunkMgr = this.worldChunkMgrLargeBiomes;
 				return largeBiomesProvider;
 			case "FLAT":
-				world.provider.worldChunkMgr = new WorldChunkManager(this.seed, WorldType.FLAT);
+				world.provider.worldChunkMgr = this.worldChunkMgrFlat;
 				return flat;
 			case "HELL":
-				world.provider.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.hell, 0.0F);
-            	return hell;
+				world.provider.worldChunkMgr = this.worldChunkMgrHell;
+				return hell;
 			case "NETHER":
-				world.provider.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.hell, 0.0F);
-            	return hell;
+				world.provider.worldChunkMgr = this.worldChunkMgrHell;
+				return hell;
 			case "END":
-				world.provider.worldChunkMgr = new WorldChunkManagerHell(BiomeGenBase.sky, 0.0F);;
+				world.provider.worldChunkMgr = this.worldChunkMgrEnd;
 				return end;
 			case "DEFAULT_1_1":
-				world.provider.worldChunkMgr = new WorldChunkManager(this.seed, WorldType.DEFAULT_1_1);
+				world.provider.worldChunkMgr = this.worldChunkMgr11;
 				return DEFAULT_1_1;
 			default:
 				//System.out.println("here be dragsons");
@@ -461,6 +474,10 @@ public class ChunkProviderSpliced implements IChunkProvider{
 							//return DimensionManager.getProvider(worldDict.get(str)).terrainType.getChunkGenerator(world, str2);
 							//return FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider();
 		if (worldDict.containsKey(GeneratorSplicer.generatorsArray[i])) {
+			if(preGennedReflectedProviders[i] != null) {
+				world.provider.worldChunkMgr = FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getWorldChunkManager();
+				return (IChunkProvider)preGennedReflectedProviders[i];
+			}
 			try {
 				Constructor<? extends IChunkProvider>[] constructors = (Constructor<? extends IChunkProvider>[]) (((Class<? extends IChunkProvider>)((((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getChunkProvider())).currentChunkProvider)).getClass())).getDeclaredConstructors();
 				for (Constructor<? extends IChunkProvider> constructor : constructors) {
@@ -474,15 +491,24 @@ public class ChunkProviderSpliced implements IChunkProvider{
 					world.provider.worldChunkMgr = FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(GeneratorSplicer.generatorsArray[i])).getWorldChunkManager();
 					//System.out.println(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getWorldChunkManager());
 					//for(int i=0;i<parameterTypes.length;i++){ System.out.println(parameterTypes[i]); }
-					if (parameterTypes.length == 2 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class))
-						return constructor.newInstance(world, seed);
-					if (parameterTypes.length == 3 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class))
-						return constructor.newInstance(world, seed, mapFeaturesEnabled);
-					if (parameterTypes.length == 4 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class) && parameterTypes[3].equals(String.class))
-						return constructor.newInstance(world, seed, mapFeaturesEnabled, GeneratorSplicer.generatorOptionsArray[i]);// TODO should probably start with longest constructor
-					if (parameterTypes.length == 5 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(Block.class) && parameterTypes[3].equals(Block.class) && parameterTypes[4].equals(int.class)) //betweenlands garbage
-						return constructor.newInstance(world, seed, Blocks.stonebrick, Blocks.water, 80);// i could probably make this level with the other ones
-				}    /*(((Class<? extends IChunkProvider>)((((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())).currentChunkProvider))))*/
+					if (parameterTypes.length == 2 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class)) {
+						if(preGennedReflectedProviders[i] == null)
+							//preGennedReflectedProviders[i] = constructor.newInstance(world, seed).getClass();
+							preGennedReflectedProviders[i] = constructor.newInstance(world, seed);
+						return preGennedReflectedProviders[i];
+					} if (parameterTypes.length == 3 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class)) {
+						if(preGennedReflectedProviders[i] == null)//i can remove these null checks but too lazy
+							preGennedReflectedProviders[i] = constructor.newInstance(world, seed, mapFeaturesEnabled);
+						return preGennedReflectedProviders[i];
+					} if (parameterTypes.length == 4 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(boolean.class) && parameterTypes[3].equals(String.class)) {
+						if(preGennedReflectedProviders[i] == null)
+							preGennedReflectedProviders[i] = constructor.newInstance(world, seed, mapFeaturesEnabled, GeneratorSplicer.generatorOptionsArray[i]);// TODO should probably start with longest constructor
+						return preGennedReflectedProviders[i];
+					} if (parameterTypes.length == 5 && parameterTypes[0].equals(World.class) && parameterTypes[1].equals(long.class) && parameterTypes[2].equals(Block.class) && parameterTypes[3].equals(Block.class) && parameterTypes[4].equals(int.class)) { //betweenlands garbage
+						if(preGennedReflectedProviders[i] == null)
+							preGennedReflectedProviders[i] = constructor.newInstance(world, seed, Blocks.stonebrick, Blocks.water, 80);// i could probably make this level with the other ones
+						return preGennedReflectedProviders[i];
+				} }    /*(((Class<? extends IChunkProvider>)((((ChunkProviderServer)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider())).currentChunkProvider))))*/
 
 				/*
 				if (((Class<? extends IChunkProvider>)(FMLCommonHandler.instance().getMinecraftServerInstance().worldServerForDimension(worldDict.get(str)).getChunkProvider().getClass())).getConstructor(World.class, long.class, boolean.class) != null)
