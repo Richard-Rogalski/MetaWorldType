@@ -59,7 +59,7 @@ public class GeneratorSplicer
 	//public static boolean genSouth;
 
 	public static int regionSize;
-	public static String worldSpawnGenerator; // TODO this currently needs to be in generatorsArray (even with a weight of 0 works), i should probably add it if it isn't present
+	//public static String worldSpawnGenerator; // TODO this currently needs to be in generatorsArray (even with a weight of 0 works), i should probably add it if it isn't present
 
 	public static String[] generatorsArray;
 	public static String[] generatorOptionsArray;
@@ -79,11 +79,11 @@ public class GeneratorSplicer
         //this.directions = GeneratorSplicer.config.getString("generateInDirection", Configuration.CATEGORY_GENERAL, "NEWS", "Directions that farlands will generate. Examples: \"NEWS\" for all directions. \"NW\" to spawn them north and to the west. \"E\" to spawn them to the east.");
 		//this.genNorth = false; this.genEast = false; this.genWest = false; this.genSouth = false;
 
-		worldSpawnGenerator = this.config.getString("worldSpawnGenerator", Configuration.CATEGORY_GENERAL, "DEFAULT", "The worldType the world spawn will always be. MUST be an overworld worldType, not one from another dimension."); //TODO document how big the worldspawn provider will be
+		//worldSpawnGenerator = this.config.getString("worldSpawnGenerator", Configuration.CATEGORY_GENERAL, "DEFAULT", "The worldType the world spawn will always be. MUST be an overworld worldType, not one from another dimension."); //TODO document how big the worldspawn provider will be
 		regionSize = this.config.getInt("regionSize", Configuration.CATEGORY_GENERAL, 128, 1, 12550820, "The length and width size of regions of other worldTypes, in chunks. (a chunk is 16x16 blocks)");
 
 		String[] defaultValues = new String[] {"DEFAULT@0.75", "AMPLIFIED@0.25"}; //TODO public static final this
-		String[] strArray = this.config.getStringList("worldTypesArray", Configuration.CATEGORY_GENERAL, defaultValues, "The list of worldTypes to splice into our worldType. Refer to the modpage for details");
+		String[] strArray = this.config.getStringList("worldTypesArray", Configuration.CATEGORY_GENERAL, defaultValues, "The list of worldTypes to splice into our worldType. Refer to the modpage for details. The first entry will be the one used for worldspawn, and _must_ not be from another dimension.");
 
 		//String str, str2;
 		float floatTracker = 0.0f;
