@@ -6,7 +6,7 @@
 		"description": "An archaic basic solution to allow any world generator to spawn along any others in the Overworld",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/Richard-Rogalski/generatorsplicer",
+		"url": "https://github.com/Richard-Rogalski/MetaWorldType",
 		"updateUrl": "",
 		"authorList": ["rrogalski"],
 		"credits": "Crucible Team && Legacy Modding MC, for the much needed help",

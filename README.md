@@ -8,6 +8,8 @@ The world gets divided into a grid of regions, regions having a configurable len
 
 This mod doesn't have any world generation of its own, it just defers the generation to other generators depending on world coordinates.
 
+To use on a server, set the world generator to `MetaWorldType` in the server config.
+
 ## Config (read)
 
 When loading into a world using the MetaWorldType, a list of possible generator strings will be spewed into the log. For example:
@@ -27,7 +29,7 @@ There are also a few builtin generator options, all from vanilla. These are `DEF
 
 All lines _must_ end with a probability to spawn, probability being `n/1`. The `@` character deliminates the probability chance, so `AMPLIFIED@0.25` will give each world region an ~25% chance to be amplified. Note that I use noise instead of random, so the same entry / entries next to each other in the list are more likely to spawn next to each other. You will probably want the sum of all the probabilities to be equal to `1`. 
 
-All generator types can optionally be followed with a custom generator string, delimited by a `+`. For example, the mod OWG has generator strings the user can set like `INFDEV#1` to select an infdev terrain generator. So if you want a ~10% chance for a region to be snowy infdev, and a 20% chance for regular infdev, you would have the entries `OWG+INFDEV#1@0.1` and `OWG+INFDEV#0@0.2`. The generator string has to be before the spawn chance.
+All generator types can optionally be followed with a custom generator string, delimited by a `+`. For example, the mod OWG has generator strings the user can set like `INFDEV#1` to select an infdev terrain generator. So if you want a ~10% chance for a region to be snowy infdev, and a ~20% chance for regular infdev, you would have the entries `OWG+INFDEV#1@0.1` and `OWG+INFDEV#0@0.2`. The generator string has to be before the spawn chance.
 
 The first entry in the list will also be used for world spawn. It has to be a world type not from a dimension mod, so `DEFAULT`, `BIOMESOP`, `HELL`, and `ATG` would be valid first options, but not say, twilight forest. If you want the first entry to spawn only in world spawn, and not elsewhere, you can give it a spawn chance of `0`. 
 

@@ -40,9 +40,9 @@ public class GeneratorSplicer
 	
  
     /*Mod ID and Version declarations*/
-    public static final String MODID = "generatorsplicer";
+    public static final String MODID = "metaworldtype";
     public static final String VERSION = "1.0.0";
-    public static final String NAME = "generatorsplicer";
+    public static final String NAME = "metaworldtype";
 
 	public static WorldType generatorsplicer;
     
@@ -123,7 +123,8 @@ public class GeneratorSplicer
     @EventHandler
     public void load(FMLInitializationEvent event)
     {
-		generatorsplicer = new SplicedWorldType("GeneratorSplicer");
+		//generatorsplicer = new SplicedWorldType("GeneratorSplicer");
+		generatorsplicer = new SplicedWorldType("MetaWorldType");
 	
         this.instance = this;
         
